@@ -1,0 +1,31 @@
+#include <Unistep2.h>
+
+int circle_step = 4096;
+unsigned long time_s=0;
+unsigned long time_e=0;
+
+Unistep2 stepper(8, 9, 10, 11, circle_step, 1800); // IN1, IN2, IN3, IN4, 總step數, 每步的延遲(in micros)
+
+void setup()
+{
+  Serial.begin(9600);
+}
+
+void loop()
+{
+  stepper.run();  //步進機啟動
+  
+  time_s = time_e;
+  if ( stepper.stepsToGo() == 0 ){ // 如果stepsToGo=0，表示步進馬達已轉完應走的step了
+    
+    
+    
+    stepper.move(circle_step);    //正轉一圈
+    //stepper.move(-4096);  //負數就是反轉，反轉一圈
+
+    time_e = millis();
+ 
+    Serial.println( time_e - time_s ); //prints time since program started
+  }
+
+}
