@@ -1,0 +1,268 @@
+
+/*code for max 7219 from maxim,
+reduced and optimised for using more than one 7219 in a row,
+______________________________________
+ 
+Code History:
+--------------
+ 
+The original code was written for the Wiring board by:
+ * Nicholas Zambetti and Dave Mellis /Interaction Design Institute Ivrea /Dec 2004
+ * https://www.potemkin.org/uploads/Wiring/MAX7219.txt
+ 
+First modification by:
+ * Marcus Hannerstig/  K3, malmö högskola /2006
+ * https://www.xlab.se | http://arduino.berlios.de
+ 
+This version is by:
+ * tomek ness /FH-Potsdam / Feb 2007
+ * https://design.fh-potsdam.de/
+ 
+ * @acknowledgements: eric f.
+ 
+-----------------------------------
+ 
+General notes:
+ 
+-if you are only using one max7219, then use the function maxSingle to control
+ the little guy ---maxSingle(register (1-8), collum (0-255))
+ 
+-if you are using more than one max7219, and they all should work the same,
+then use the function maxAll ---maxAll(register (1-8), collum (0-255))
+ 
+-if you are using more than one max7219 and just want to change something
+at one little guy, then use the function maxOne
+---maxOne(Max you want to control (1== the first one), register (1-8),
+column (0-255))
+ 
+During initiation, be sure to send every part to every max7219 and then
+upload it.
+For example, if you have five max7219's, you have to send the scanLimit 5 times
+before you load it-- otherwise not every max7219 will get the data. the
+function maxInUse keeps track of this, just tell it how many max7219 you are
+using.
+*/
+int boardInUse = 20 ; 
+int maxInUse   = 4 ;    //change this variable to set how many MAX7219's you'll use
+
+int pin_number[20][3] = {
+    // [data_in, load, clock]
+    {A11, A12, A13},  // 0
+    {A8, A9, A10},   // 1
+    {A3, A4, A5},    // 2
+    {A0, A1, A2},    // 3
+    {47, 49, 51},    // 4
+    {46, 48, 50},    // 5
+    {41, 43, 45},    // 6
+    {40, 42, 44},    // 7
+    {35, 37, 39},    // 8
+    {34, 36, 38},    // 9
+    {29, 31, 33},    // 10
+    {28, 30, 32},    // 11
+    {23, 25, 27},    // 12
+    {22, 24, 26},    // 13
+    {17, 18, 19},    // 14
+    {14, 15, 16},    // 15
+    {11, 12, 13},    // 16
+    {8, 9, 10},      // 17
+    {5, 6, 7},       // 18
+    {2, 3, 4}        // 19
+};
+ 
+
+ 
+// define max7219 registers
+byte max7219_reg_noop        = 0x00;
+byte max7219_reg_digit0      = 0x01;
+byte max7219_reg_digit1      = 0x02;
+byte max7219_reg_digit2      = 0x03;
+byte max7219_reg_digit3      = 0x04;
+byte max7219_reg_digit4      = 0x05;
+byte max7219_reg_digit5      = 0x06;
+byte max7219_reg_digit6      = 0x07;
+byte max7219_reg_digit7      = 0x08;
+byte max7219_reg_decodeMode  = 0x09;
+byte max7219_reg_intensity   = 0x01;
+byte max7219_reg_scanLimit   = 0x0b;
+byte max7219_reg_shutdown    = 0x0c;
+byte max7219_reg_displayTest = 0x0f;
+
+
+void putByte(int board, byte data) {
+    byte mask = 0b10000000;
+    while (mask > 0) {
+        digitalWrite(pin_number[board][2], LOW);   // tick
+        digitalWrite(pin_number[board][0], (data & mask)? HIGH: LOW);
+        digitalWrite(pin_number[board][2], HIGH);  // tock
+        mask >>= 1;
+    }
+}
+ 
+void maxSingle( int board, byte reg, byte col) {    
+//maxSingle is the "easy"  function to use for a single max7219
+ 
+  digitalWrite(pin_number[board][1], LOW);              // begin    
+  putByte(board, reg);                                  // specify register
+  putByte(board, col);                                  //((data & 0x01) * 256) + data >> 1);    // put data  
+  digitalWrite(pin_number[board][1], LOW);              // and load da stuff
+  digitalWrite(pin_number[board][1],HIGH);
+}
+ 
+void maxAll (int board, byte reg, byte col) {      // initialize  all  MAX7219's in the system
+  int c = 0;
+  digitalWrite(pin_number[board][1], LOW);         // begin    
+  for ( c =1; c<= maxInUse; c++) {
+  putByte(board, reg);                             // specify register
+  putByte(board, col);                             //((data & 0x01) * 256) + data >> 1); // put data
+  }
+  digitalWrite(pin_number[board][1], LOW);
+  digitalWrite(pin_number[board][1],HIGH);
+}
+ 
+
+void maxone_singl(int board, byte maxNr, byte reg, byte col) {    
+  //t_start = micros();
+  int c = 0;
+  digitalWrite(pin_number[board][1], LOW);    // begin
+  
+  for (int i=maxInUse; i > 0; i--) {
+    if (i == maxNr){
+      putByte(board, reg);    // specify register
+      putByte(board, col);    //((data & 0x01) * 256) + data >> 1); // put data
+    }
+    else{                     //不是地就傳noop
+      putByte(board, 0);      // means no operation
+      putByte(board, 0);      // means no operation
+    }
+  }
+  digitalWrite(pin_number[board][1], LOW);    // and load da stuff
+  digitalWrite(pin_number[board][1], HIGH);
+}
+
+void maxone_multi(int board, byte reg, byte col4, byte col3, byte col2, byte col1) {    
+
+  digitalWrite(pin_number[board][1], LOW);    // begin    
+  putByte(board, reg);                        // specify register
+  putByte(board, col4);                       //((data & 0x01) * 256) + data >> 1); // put data
+  putByte(board, reg);                        // specify register
+  putByte(board, col3);                       //((data & 0x01) * 256) + data >> 1); // put data
+  putByte(board, reg);                        // specify register
+  putByte(board, col2);                       //((data & 0x01) * 256) + data >> 1); // put data
+  putByte(board, reg);                        // specify register
+  putByte(board, col1);                       //((data & 0x01) * 256) + data >> 1); // put data
+  
+  digitalWrite(pin_number[board][1], LOW);    // and load da stuff
+  digitalWrite(pin_number[board][1], HIGH);
+}
+ 
+void setup () {
+  Serial.begin(230400);
+  for (int i = 0; i < boardInUse; i++) {
+    pinMode(pin_number[i][0], OUTPUT);
+    pinMode(pin_number[i][1], OUTPUT);
+    pinMode(pin_number[i][2], OUTPUT);
+    digitalWrite(pin_number[i][2], HIGH);
+   } 
+
+
+  //initiation of the max 7219
+  for (int bnumber = 0; bnumber < boardInUse; bnumber++) {
+    maxAll(bnumber, max7219_reg_scanLimit  , 0x07);      
+    maxAll(bnumber, max7219_reg_decodeMode , 0x00);  // using an led matrix (not digits)
+    maxAll(bnumber, max7219_reg_shutdown   , 0x01);  // not in shutdown mode
+    maxAll(bnumber, max7219_reg_displayTest, 0x00);  // no display test
+    for (int col=1; col<=8; col++) {                           // empty registers, turn all LEDs off
+      maxAll(bnumber, col, 0);
+    }
+    maxAll(bnumber, max7219_reg_intensity, 0x00 & 0x00);    // the first 0x0f is the value you can set  // range: 0x00 to 0x0f
+  }                                           
+} 
+
+void bright(){
+  for(int i=0; i<boardInUse; i++){
+    for (int col=1; col<9; col++){
+      maxAll(i,col,255);
+    }
+  }
+}
+
+void dark(){
+  for(int i=0; i<boardInUse; i++){
+    for (int col=1; col<9; col++){
+      maxAll(i,col,0);
+    }
+  }
+}
+
+
+
+byte board_s, reg_s, col4_s, col3_s, col2_s, col1_s ;
+
+String str = "002008255060" ;
+char str_char[16];
+
+
+void str2signal(String str){
+  str.toCharArray(str_char, 19);
+  board_s = byte(str_char[0]-48)*10 + byte(str_char[1]-48);
+  reg_s   = byte(str_char[2]-48);
+  col4_s  = byte(str_char[3]-48)*100 + byte(str_char[4]-48)*10 + byte(str_char[5]-48);
+  col3_s  = byte(str_char[6]-48)*100 + byte(str_char[7]-48)*10 + byte(str_char[8]-48);
+  col2_s  = byte(str_char[9]-48)*100 + byte(str_char[10]-48)*10 + byte(str_char[11]-48);
+  col1_s  = byte(str_char[12]-48)*100 + byte(str_char[13]-48)*10 + byte(str_char[14]-48);
+}
+
+//t_start = micros();
+//t_end = micros();
+//Serial.println(t_end - t_start);
+
+unsigned long t_start, t_end, t_end1, t_end2, t_end3, t_end4 ;
+void loop() {
+  
+  /*test*/
+  //bright();
+  //dark();
+  //maxone_multi(0, 1, 255, 255, 255, 255);
+  /*main function*/
+  
+  
+  if (Serial.available()) {
+    t_start = micros();
+    str = Serial.readStringUntil('\n'); // 讀取傳入的字串直到"\n"結尾
+    //Serial.println(str.length());
+    int col_num = str.length()/15 ;
+    //Serial.println(col_num);
+    
+    /* 迭帶 */
+    for (int col=0; col<col_num; col++ ){
+      String col_signal = str.substring((col*15),(col+1)*15);
+      t_end1 = micros();
+      str2signal(col_signal);
+      t_end2 = micros();
+      maxone_multi(board_s, reg_s, col4_s, col3_s, col2_s, col1_s);
+      
+      /*
+      Serial.print(board_s);
+      Serial.print("\t");
+      Serial.print(reg_s);
+      Serial.print("\t");
+      Serial.print(col4_s);
+      Serial.print("\t");
+      Serial.print(col3_s);
+      Serial.print("\t");
+      Serial.print(col2_s);
+      Serial.print("\t");
+      Serial.println(col1_s);
+      */
+      
+    }
+    t_end3 = micros();
+    Serial.println((t_end1 - t_start));
+    Serial.println((t_end2 - t_end1));
+    Serial.println((t_end3 - t_end2));
+    Serial.println((t_end3 - t_start));
+  }
+
+
+  
+}
